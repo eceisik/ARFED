@@ -25,7 +25,7 @@ pip install -r requirements.txt
 ```
 OR    
 
-To create an environment from an environment.yml file. Please see for more [details](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file).
+To create a conda virtual environment from an environment.yml file. Please see [here](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file) for more details.
 ```
 conda env create -f environment.yml
 ```
