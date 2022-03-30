@@ -45,12 +45,10 @@ We performed the experiments for label flipping and Byzantine attacks on MNIST, 
 ## Citation
 Please use the following BibTeX entry for citation:
 ```BibTeX
-@misc{isikpolat2021barfed,
-      title={BARFED: Byzantine Attack-Resistant Federated Averaging Based on Outlier Elimination}, 
-      author={Ece Isik-Polat and Gorkem Polat and Altan Kocyigit},
-      year={2021},
-      eprint={2111.04550},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
+@article{isikpolat2021barfed,
+title={BARFED: Byzantine Attack-Resistant Federated Averaging Based on Outlier Elimination},
+author={Ece Isik-Polat and Gorkem Polat and Altan Kocyigit},
+year={2021},
+journal={arXiv preprint arXiv:2111.04550}
 }
 ```
