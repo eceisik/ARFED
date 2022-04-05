@@ -1,4 +1,4 @@
-# BARFED: Byzantine Attack Resistant Federated Averaging Based on Outlier Elimination
+# ARFED: Attack Resistant Federated Averaging Based on Outlier Elimination
 
 This repository is the official implementation of __*BARFED: Byzantine Attack Resistant Federated Averaging Based on Outlier Elimination*__. 
 The framework and full methodology are detailed in [our manuscript](https://arxiv.org/abs/2111.04550).
