@@ -760,3 +760,136 @@ def start_train_end_node_process_with_anticatalysts(number_of_samples, x_train_d
             test_loss, test_accuracy = validation(model, test_dl, criterion, device)
 
 
+######################################
+#### a little is enough functions
+def get_zscore_for_a_little_is_enough (number_of_samples,hostile_node_percentage):
+#     from statistics import NormalDist is defined at the top
+    malicious = int(number_of_samples * hostile_node_percentage)
+    supporter = np.floor((number_of_samples / 2) + 1) - malicious
+    area = (number_of_samples - malicious - supporter) / (number_of_samples - malicious)
+    zscore = NormalDist().inv_cdf(area)
+    return zscore
+def get_byzantine_node_stats_for_a_little(model_dict,byzantine_node_list, device):
+    name_of_models = []
+    for node in byzantine_node_list:
+        name_of_models.append("model"+str(node))
+    parameters = list(model_dict[name_of_models[0]].named_parameters())
+    ##named_parameters layer adını ve datayı tuple olarak dönderiyor
+    ##parameters sadece datayı dönderiyor
+    weight_dict = dict()
+    for k in range(len(parameters)):
+        name = parameters[k][0]
+        w_shape = list(parameters[k][1].shape)
+        w_shape.insert(0, len(byzantine_node_list))
+        weight_info = torch.zeros(w_shape, device=device)
+        weight_dict.update({name: weight_info})
+    weight_names_list = list(weight_dict.keys())
+    with torch.no_grad():
+        for i in range(len(byzantine_node_list)):
+            sample_param_data_list = list(model_dict[name_of_models[i]].parameters())
+            for j in range(len(weight_names_list)):
+                weight_dict[weight_names_list[j]][i,] = sample_param_data_list[j].data.clone()
+        mean_weight_array = []
+        std_weight_array = []
+        for m in range(len(weight_names_list)):
+            mean_weight_array.append(torch.mean(weight_dict[weight_names_list[m]], 0))
+            std_weight_array.append(torch.std(weight_dict[weight_names_list[m]], 0))
+    return mean_weight_array,std_weight_array
+def change_parameters_of_hostile_nodes(model_dict, byzantine_node_list,zscore, device):
+    name_of_models = list(model_dict.keys())
+    with torch.no_grad():
+        mean_weight_array,std_weight_array = get_byzantine_node_stats_for_a_little(model_dict,byzantine_node_list, device=device)
+        for j in byzantine_node_list:
+            hostile_node_param_data_list = list(model_dict[name_of_models[j]].parameters())
+            for k in range(len(hostile_node_param_data_list)):
+                hostile_node_param_data_list[k].data= mean_weight_array[k]-std_weight_array[k]*zscore
+            model_dict[name_of_models[j]].float()
+    return model_dict
+#####################################
+def get_trimmed_mean(model_dict, hostile_node_percentage, device):
+    name_of_models = list(model_dict.keys())
+    parameters = list(model_dict[name_of_models[0]].named_parameters())
+    weight_dict = dict()
+    for k in range(len(parameters)):
+        name = parameters[k][0]
+        w_shape = list(parameters[k][1].shape)
+        w_shape.insert(0, len(model_dict))
+        weight_info = torch.zeros(w_shape, device=device)
+        weight_dict.update({name: weight_info})
+    weight_names_list = list(weight_dict.keys())
+    with torch.no_grad():
+        for i in range(len(model_dict)):
+            sample_param_data_list = list(model_dict[name_of_models[i]].parameters())
+            for j in range(len(weight_names_list)):
+                weight_dict[weight_names_list[j]][i,] = sample_param_data_list[j].data.clone()
+    mean_weight_array = []
+    for m in range(len(weight_names_list)):
+        layers_from_nodes = weight_dict[weight_names_list[m]]
+        trim_layer_info=stats.trim_mean(layers_from_nodes.clone().cpu(), hostile_node_percentage, axis=0)
+        mean_weight_array.append(trim_layer_info)
+    return mean_weight_array
+def set_trimmed_mean_weights_as_main_model_weights_and_update_main_model(main_model, model_dict, hostile_node_percentage, device):
+    mean_weight_array = get_trimmed_mean(model_dict, hostile_node_percentage, device)
+    main_model_param_data_list = list(main_model.parameters())
+    with torch.no_grad():
+        for j in range(len(main_model_param_data_list)):
+                        main_model_param_data_list[j].data = torch.tensor(mean_weight_array[j], dtype=torch.float32, device=device)
+    return main_model
+######################################
+# fang partial knowledge attack adaptation
+def partial_knowledge_fang_ind(main_model, model_dict,byzantine_node_list, iteration_byzantine_seed, device):
+    name_of_models = list(model_dict.keys())
+    with torch.no_grad():
+        mean_weight_array, std_weight_array = get_byzantine_node_stats_for_a_little(model_dict, byzantine_node_list,
+                                                                                       device=device)
+        main_model_param_data_list = list(main_model.parameters())
+        for j in byzantine_node_list:
+            hostile_node_param_data_list = list(model_dict[name_of_models[j]].parameters())
+            for k in range(len(hostile_node_param_data_list)):
+                original_shape = list(hostile_node_param_data_list[k].data.shape)
+                data = np.zeros(original_shape)
+                hostile_data = hostile_node_param_data_list[k].data.clone().data.cpu()
+                main_model_data = main_model_param_data_list[k].data.clone().data.cpu()
+                mean = mean_weight_array[k].clone().data.cpu()
+                std = std_weight_array[k].clone().data.cpu()
+                sign_matrix = (hostile_data > main_model_data)
+                np.random.seed(iteration_byzantine_seed) ## nodelar kendi mean stdlerine göre alıyor her experimentin x. roundı aynı gibi
+                data[sign_matrix == True] = np.random.uniform(
+                    low=mean[sign_matrix == True] - 4 * std[sign_matrix == True],
+                    high=mean[sign_matrix == True] - 3 * std[sign_matrix == True])
+                np.random.seed(iteration_byzantine_seed)
+                data[sign_matrix == False] = np.random.uniform(
+                    low=mean[sign_matrix == False] + 3 * std[sign_matrix == False],
+                    high=mean[sign_matrix == False] + 4 * std[sign_matrix == False])
+                hostile_node_param_data_list[k].data = torch.tensor(data,dtype=torch.float32, device=device)
+            model_dict[name_of_models[j]].float()
+    return model_dict
+def partial_knowledge_fang_org(main_model, model_dict, byzantine_node_list, iteration_byzantine_seed, device):
+    name_of_models = list(model_dict.keys())
+    with torch.no_grad():
+        mean_weight_array, std_weight_array = get_byzantine_node_stats_for_a_little(model_dict, byzantine_node_list,
+                                                                                       device=device)
+        main_model_param_data_list = list(main_model.parameters())
+        organized = []
+        for k in range(len(main_model_param_data_list)):
+            original_shape = list(main_model_param_data_list[k].data.shape)
+            data = np.zeros(original_shape)
+            main_model_data = main_model_param_data_list[k].clone().data.cpu()
+            mean = mean_weight_array[k].clone().data.cpu()
+            std = std_weight_array[k].clone().data.cpu()
+            sign_matrix = (mean > main_model_data)
+            np.random.seed(iteration_byzantine_seed)
+            data[sign_matrix == True] = np.random.uniform(
+                low=mean[sign_matrix == True] - 4 * std[sign_matrix == True],
+                high=mean[sign_matrix == True] - 3 * std[sign_matrix == True])
+            np.random.seed(iteration_byzantine_seed)
+            data[sign_matrix == False] = np.random.uniform(
+                low=mean[sign_matrix == False] + 3 * std[sign_matrix == False],
+                high=mean[sign_matrix == False] + 4 * std[sign_matrix == False])
+            organized.append(data)
+    for b in byzantine_node_list:
+        hostile_node_param_data_list = list(model_dict[name_of_models[b]].parameters())
+        for m in range(len(hostile_node_param_data_list)):
+            hostile_node_param_data_list[m].data = torch.tensor(organized[m], dtype=torch.float32, device=device)
+        model_dict[name_of_models[b]].float()
+    return model_dict
