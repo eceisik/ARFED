@@ -1,7 +1,7 @@
 # ARFED: Attack Resistant Federated Averaging Based on Outlier Elimination
 
 This repository is the official implementation of __*ARFED: Attack Resistant Federated Averaging Based on Outlier Elimination*__. 
-The framework and full methodology are detailed in [our manuscript](https://arxiv.org/abs/2111.04550).
+The framework and full methodology are detailed in [our manuscript](https://www.sciencedirect.com/science/article/abs/pii/S0167739X22004083).
 
 ## Install required packages
 
@@ -63,10 +63,15 @@ We performed the experiments for label flipping and Byzantine attacks on MNIST, 
 ## Citation
 Please use the following BibTeX entry for citation:
 ```BibTeX
-@article{isikpolat2021barfed,
-title={BARFED: Byzantine Attack-Resistant Federated Averaging Based on Outlier Elimination},
-author={Ece Isik-Polat and Gorkem Polat and Altan Kocyigit},
-year={2021},
-journal={arXiv preprint arXiv:2111.04550}
+@article{ISIKPOLAT2023626,
+title = {ARFED: Attack-Resistant Federated averaging based on outlier elimination},
+journal = {Future Generation Computer Systems},
+volume = {141},
+pages = {626-650},
+year = {2023},
+issn = {0167-739X},
+doi = {https://doi.org/10.1016/j.future.2022.12.003},
+url = {https://www.sciencedirect.com/science/article/pii/S0167739X22004083},
+author = {Ece Isik-Polat and Gorkem Polat and Altan Kocyigit}
 }
 ```
